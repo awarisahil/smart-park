@@ -7,6 +7,32 @@ hourly billing, all behind JWT-secured role-based access control.
 - **Backend:** Java 17, Spring Boot 3 (Web, Security, Data JPA, WebSocket/STOMP, Scheduling), H2 (default) or MySQL
 - **Frontend:** React 18, Vite, React Router, Axios, STOMP over SockJS
 
+## Screenshots
+
+**Live slot board** — multi-floor map, capacity strip, price estimates and the live activity feed (here showing a simulated vehicle parking itself):
+
+![Live slot board](docs/screenshots/live-board.png)
+
+**My reservations** — entry code with gate-pass card and countdown, session timeline, extensions, receipts:
+
+![My reservations](docs/screenshots/my-reservations.png)
+
+**Attendant console** — gate/ANPR console, entry codes, check-in/out with automatic billing:
+
+![Attendant console](docs/screenshots/attendant-console.png)
+
+**Admin analytics** — revenue by zone, demand heatmap, 7-day trend, gates & sensor simulator, slot management:
+
+![Admin analytics](docs/screenshots/admin-analytics.png)
+
+**Admin session log** — filterable, paginated history with CSV export:
+
+![Admin sessions](docs/screenshots/admin-sessions.png)
+
+**Sign in** — demo accounts one tap away:
+
+![Login](docs/screenshots/login.png)
+
 ## Features
 
 - **Sensor/gate simulator (IoT layer)** — a background simulator keeps the facility
