@@ -1,0 +1,41 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: smart-parking
+  datasource:
+    url: jdbc:h2:mem:parkingdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+app:
+  jwt:
+    # Dev-only default. Override with APP_JWT_SECRET env var in production (>= 64 chars).
+    secret: ${APP_JWT_SECRET:dev-only-change-me-9f8e7d6c5b4a3210fedcba9876543210abcdef0123456789}
+    expiration-ms: 86400000
+  reservation:
+    # A reservation is auto-cancelled if the vehicle has not entered within this window.
+    hold-minutes: ${APP_RESERVATION_HOLD_MINUTES:15}
+  simulator:
+    # Background IoT sensor simulation (set SIMULATOR_ENABLED=false to disable).
+    enabled: ${SIMULATOR_ENABLED:true}
+    # Share of the lot simulated vehicles may occupy (0.0 - 1.0).
+    target-occupancy: ${SIM_TARGET_OCCUPANCY:0.4}
+    # Slots always kept free for real users; bots are evicted under pressure.
+    human-buffer: ${SIM_HUMAN_BUFFER:4}
+    # How long a simulated vehicle stays parked (minutes).
+    bot-stay-minutes: ${SIM_BOT_STAY_MIN:3}
+
+logging:
+  level:
+    root: info
