@@ -23,6 +23,8 @@ public class AdminController {
 
     private final UserRepository userRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final com.smartparking.service.AuditService auditService;
+    private final com.smartparking.repository.AuditLogRepository auditLogRepository;
 
     @GetMapping("/users")
     public List<UserResponse> users() {
@@ -42,6 +44,7 @@ public class AdminController {
         }
         target.setRole(request.role());
         userRepository.save(target);
+        auditService.record("ROLE_CHANGE", target.getEmail(), "role → " + request.role());
         return toResponse(target);
     }
 
@@ -55,6 +58,8 @@ public class AdminController {
         }
         target.setEnabled(request.enabled());
         userRepository.save(target);
+        auditService.record(request.enabled() ? "ACCOUNT_ENABLED" : "ACCOUNT_DISABLED",
+                target.getEmail(), "account " + (request.enabled() ? "enabled" : "disabled"));
         return toResponse(target);
     }
 
@@ -62,7 +67,20 @@ public class AdminController {
     public AnnouncementResponse announce(@Valid @RequestBody AnnouncementRequest request) {
         AnnouncementResponse announcement = new AnnouncementResponse(request.message().trim(), Instant.now());
         messagingTemplate.convertAndSend("/topic/announcements", announcement);
+        auditService.record("ANNOUNCEMENT", null,
+                "broadcast: " + request.message().trim());
         return announcement;
+    }
+
+    /** Paginated audit trail of security-relevant actions (newest first). */
+    @GetMapping("/audit")
+    public org.springframework.data.domain.Page<AuditLogResponse> audit(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size) {
+        var pageable = org.springframework.data.domain.PageRequest.of(
+                page, size, org.springframework.data.domain.Sort.by(
+                        org.springframework.data.domain.Sort.Direction.DESC, "createdAt"));
+        return auditLogRepository.findAll(pageable).map(this::toAuditResponse);
     }
 
     private User findByEmail(String email) {
@@ -78,5 +96,10 @@ public class AdminController {
     private UserResponse toResponse(User user) {
         return new UserResponse(user.getId(), user.getName(), user.getEmail(),
                 user.getRole(), user.isEnabled(), user.getCreatedAt());
+    }
+
+    private AuditLogResponse toAuditResponse(com.smartparking.model.AuditLog log) {
+        return new AuditLogResponse(log.getId(), log.getActorEmail(), log.getActorRole(),
+                log.getAction(), log.getTarget(), log.getDetail(), log.getIp(), log.getCreatedAt());
     }
 }

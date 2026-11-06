@@ -44,9 +44,16 @@ public class DataSeeder implements CommandLineRunner {
     private final VehicleProfileRepository vehicleRepository;
     private final PasswordEncoder passwordEncoder;
 
+    @org.springframework.beans.factory.annotation.Value("${app.seed-demo-data:true}")
+    private boolean seedDemoData;
+
     @Override
     @Transactional
     public void run(String... args) {
+        if (!seedDemoData) {
+            log.info("Demo data seeding disabled (app.seed-demo-data=false)");
+            return;
+        }
         User demoUser = null;
         if (userRepository.count() == 0) {
             userRepository.save(new User("System Admin", "admin@parking.com",

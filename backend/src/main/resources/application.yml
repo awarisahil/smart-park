@@ -1,9 +1,12 @@
 server:
   port: 8080
+  shutdown: graceful
 
 spring:
   application:
     name: smart-parking
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
   datasource:
     url: jdbc:h2:mem:parkingdb
     driver-class-name: org.h2.Driver
@@ -11,18 +14,35 @@ spring:
     password:
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: validate
     open-in-view: false
+  flyway:
+    locations: classpath:db/migration
   h2:
     console:
       enabled: true
       path: /h2-console
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: never
+  info:
+    env:
+      enabled: true
+
 app:
   jwt:
     # Dev-only default. Override with APP_JWT_SECRET env var in production (>= 64 chars).
     secret: ${APP_JWT_SECRET:dev-only-change-me-9f8e7d6c5b4a3210fedcba9876543210abcdef0123456789}
-    expiration-ms: 86400000
+    # Access token lifetime — short, as the refresh token rotates it automatically.
+    expiration-ms: ${JWT_EXPIRATION_MS:900000}
+  refresh-token:
+    expiry-days: ${REFRESH_TOKEN_DAYS:7}
   reservation:
     # A reservation is auto-cancelled if the vehicle has not entered within this window.
     hold-minutes: ${APP_RESERVATION_HOLD_MINUTES:15}
@@ -35,6 +55,20 @@ app:
     human-buffer: ${SIM_HUMAN_BUFFER:4}
     # How long a simulated vehicle stays parked (minutes).
     bot-stay-minutes: ${SIM_BOT_STAY_MIN:3}
+  # Demo users/slots/history seeding — disable in production.
+  seed-demo-data: ${SEED_DEMO_DATA:true}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://65.21.8.185:8484}
+  rate-limit:
+    # Per-IP sliding window (requests per minute).
+    auth-per-minute: ${RATE_LIMIT_AUTH:30}
+    api-per-minute: ${RATE_LIMIT_API:600}
+
+info:
+  app:
+    name: SmartPark
+    description: Real-time smart parking platform
+    version: 1.0.0
 
 logging:
   level:

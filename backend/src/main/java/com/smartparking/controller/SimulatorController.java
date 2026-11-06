@@ -20,6 +20,7 @@ public class SimulatorController {
     @PreAuthorize("hasRole('ADMIN')")
     public Map<String, Object> toggle(@Valid @RequestBody SimulatorToggleRequest request) {
         simulator.setEnabled(request.enabled());
+        auditService.record("SIMULATOR_TOGGLE", null, "simulator " + (request.enabled() ? "enabled" : "disabled"));
         return Map.of("enabled", simulator.isEnabled());
     }
 
