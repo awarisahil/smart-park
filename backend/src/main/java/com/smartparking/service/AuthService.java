@@ -39,6 +39,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final LoginAttemptService loginAttemptService;
     private final AuditService auditService;
+    private final RefreshTokenRotation refreshTokenRotation;
 
     @Value("${app.refresh-token.expiry-days}")
     private long refreshExpiryDays;
@@ -97,7 +98,7 @@ public class AuthService {
         RefreshToken stored = refreshTokenRepository.findByTokenHash(sha256(presentedToken))
                 .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "Invalid refresh token"));
         if (stored.isRevoked()) {
-            revokeAll(stored.getUser());
+            refreshTokenRotation.revokeFamilyOf(stored.getUser());
             auditService.record("REFRESH_REUSE_DETECTED", stored.getUser().getEmail(),
                     "revoked refresh token presented — family revoked");
             throw new ApiException(HttpStatus.UNAUTHORIZED, "Refresh token reuse detected. Please sign in again.");
@@ -111,8 +112,7 @@ public class AuthService {
 
     @Transactional
     public void logout(String presentedToken) {
-        refreshTokenRepository.findByTokenHash(sha256(presentedToken))
-                .ifPresent(token -> token.setRevoked(true));
+        refreshTokenRotation.revokeOne(sha256(presentedToken));
     }
 
     private AuthResponse issueTokens(User user) {
@@ -128,10 +128,6 @@ public class AuthService {
                 sha256(raw),
                 Instant.now().plus(refreshExpiryDays, ChronoUnit.DAYS)));
         return raw;
-    }
-
-    private void revokeAll(User user) {
-        refreshTokenRepository.findByUser(user).forEach(token -> token.setRevoked(true));
     }
 
     private String sha256(String raw) {

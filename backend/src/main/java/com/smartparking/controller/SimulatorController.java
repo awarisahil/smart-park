@@ -15,6 +15,7 @@ import java.util.Map;
 public class SimulatorController {
 
     private final SensorSimulatorService simulator;
+    private final com.smartparking.service.AuditService auditService;
 
     @PostMapping("/toggle")
     @PreAuthorize("hasRole('ADMIN')")

@@ -17,6 +17,7 @@ export function AuthProvider({ children }) {
   const persist = (data) => {
     const current = { id: data.id, name: data.name, email: data.email, role: data.role };
     localStorage.setItem('token', data.token);
+    localStorage.setItem('refreshToken', data.refreshToken);
     localStorage.setItem('user', JSON.stringify(current));
     setUser(current);
   };
@@ -32,7 +33,13 @@ export function AuthProvider({ children }) {
   };
 
   const logout = () => {
+    const refreshToken = localStorage.getItem('refreshToken');
+    if (refreshToken) {
+      // Best-effort server-side revocation of the refresh token.
+      api.post('/auth/logout', { refreshToken }).catch(() => {});
+    }
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
     setUser(null);
   };

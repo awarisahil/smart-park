@@ -1,0 +1,46 @@
+name: smartpark
+
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: mysql
+      DB_USERNAME: smartpark
+      DB_PASSWORD: smartpark
+      DB_URL: jdbc:mysql://mysql:3306/smart_parking?useSSL=false&serverTimezone=UTC
+      APP_JWT_SECRET: ${APP_JWT_SECRET:-change-me-in-production-0123456789abcdef0123456789abcdef0123456789abcdef}
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-true}
+      SIMULATOR_ENABLED: ${SIMULATOR_ENABLED:-true}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: smart_parking
+      MYSQL_USER: smartpark
+      MYSQL_PASSWORD: smartpark
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+    volumes:
+      - smartpark-db:/var/lib/mysql
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-usmartpark", "-psmartpark" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  smartpark-db:

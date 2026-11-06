@@ -28,7 +28,6 @@ public class GateService {
     private final ActivityService activityService;
 
     @Transactional
-    @PreAuthorize("hasAnyRole('ADMIN', 'ATTENDANT')")
     public ReservationResponse entry(String plate) {
         String vehicle = plate.trim().toUpperCase();
         var existing = reservationRepository
@@ -56,7 +55,6 @@ public class GateService {
     }
 
     @Transactional
-    @PreAuthorize("hasAnyRole('ADMIN', 'ATTENDANT')")
     public ReservationResponse exit(String plate) {
         String vehicle = plate.trim().toUpperCase();
         var existing = reservationRepository

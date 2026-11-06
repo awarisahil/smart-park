@@ -93,6 +93,62 @@ hourly billing, all behind JWT-secured role-based access control.
 - **Seeded demo history** — 8 completed sessions across past days so the admin
   dashboard shows live analytics on first run.
 
+## Architecture
+
+```
+┌────────────┐   HTTPS    ┌──────────────┐  proxy /api,/ws  ┌──────────────────┐
+│  React SPA │ ─────────▶ │ nginx (web)  │ ───────────────▶ │ Spring Boot API  │
+│  (Vite)    │            │ static dist  │                  │  · REST (/api)   │
+└────────────┘            └──────────────┘                  │  · STOMP (/ws)   │
+                                                            │  · schedulers    │
+                                                            └───────┬──────────┘
+                                                                    │ JPA
+                                                            ┌───────▼──────────┐
+                                                            │ H2 (dev) / MySQL │
+                                                            └──────────────────┘
+```
+
+- **Real-time**: slot events are broadcast on `/topic/slots` after transaction commit;
+  gate events stream on `/topic/activity`; admin announcements on `/topic/announcements`.
+- **Allocation engine**: `SELECT ... FOR UPDATE` (floor, zone, slot number order) serializes
+  concurrent reservations — proven by a concurrency test.
+- **Schedulers**: hold-expiry sweeper (with 5-min warnings), waitlist fulfiller, booking
+  allocator, sensor simulator — all `@Scheduled`, disable with `spring.task.scheduling.enabled=false`.
+- **Schema**: managed by **Flyway** (`V1__init_schema.sql`) — `ddl-auto: validate` only.
+
+## API documentation
+
+Interactive OpenAPI/Swagger UI: **`/swagger-ui.html`** (JWT bearer auth built in).
+Actuator: `/actuator/health` (public), `/actuator/metrics` (ADMIN).
+
+## Security
+
+- Stateless JWT **access tokens (15 min)** + **rotating refresh tokens (7 days)**,
+  hashed at rest, with **reuse detection** (a replayed token revokes the whole family).
+- BCrypt password hashing, 5-strike **login lockout**, per-IP **rate limiting**
+  (auth endpoints 30/min, API 600/min), CORS allowlist, security headers.
+- Role-based access enforced at the controller layer; disabled accounts are blocked
+  immediately (even mid-session).
+- **Audit log**: logins, failures, role changes, enable/disable, announcements,
+  simulator toggles — Admin → Audit tab.
+
+## Testing
+
+18 integration tests (`mvn test`): auth & refresh rotation, RBAC matrix, reservation
+lifecycle & committed-time billing, slot-type allocation, waitlist fulfilment, season-pass
+coverage, scheduled booking allocation, gate/ANPR flow, tailgating anomaly, simulator
+lifecycle, and a **concurrency test proving the allocation engine never double-books**.
+
+## Docker
+
+```bash
+docker compose up --build     # mysql + backend + frontend (:80)
+```
+
+## Live demo
+
+Deployed at **http://65.21.8.185:8484** (nginx + systemd + ufw on Ubuntu 24.04).
+
 ## Project layout
 
 ```
@@ -159,7 +215,9 @@ All endpoints except `/api/auth/**` require `Authorization: Bearer <jwt>`.
 | Method | Endpoint                        | Roles             | Description |
 |--------|---------------------------------|-------------------|-------------|
 | POST   | `/api/auth/register`            | public            | Create a USER account |
-| POST   | `/api/auth/login`               | public            | Login, returns JWT |
+| POST   | `/api/auth/login`               | public            | Login, returns access + refresh tokens |
+| POST   | `/api/auth/refresh`             | public            | Rotate the refresh token pair |
+| POST   | `/api/auth/logout`              | public            | Revoke the presented refresh token |
 | GET    | `/api/slots`                    | any authenticated | Live slot board + counts + hourly rates |
 | POST   | `/api/slots`                    | ADMIN             | Create a slot (optional custom rate) |
 | PATCH  | `/api/slots/{id}/status`        | ADMIN, ATTENDANT  | Set `AVAILABLE` / `MAINTENANCE` |
@@ -177,6 +235,7 @@ All endpoints except `/api/auth/**` require `Authorization: Bearer <jwt>`.
 | GET    | `/api/waitlist/my` · `POST` · `DELETE /{id}` | any authenticated | Smart waitlist |
 | GET    | `/api/notifications/my` · `POST /read-all` | any authenticated | Notification center |
 | GET    | `/api/admin/users` · `PATCH /users/{id}/role` · `PATCH /users/{id}/enabled` | ADMIN | User management |
+| GET    | `/api/admin/audit`              | ADMIN             | Paginated audit trail |
 | POST   | `/api/admin/announcements`         | ADMIN             | Broadcast to all connected clients |
 | GET    | `/api/reports/sessions`            | ADMIN             | Filtered, paginated session log |
 | GET    | `/api/reports/export`              | ADMIN             | Full history CSV |

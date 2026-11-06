@@ -25,11 +25,15 @@ export default function AdminDashboard() {
         <button className={`tab ${tab === 'users' ? 'active' : ''}`} onClick={() => setTab('users')}>
           Users
         </button>
+        <button className={`tab ${tab === 'audit' ? 'active' : ''}`} onClick={() => setTab('audit')}>
+          Audit
+        </button>
       </div>
 
       {tab === 'overview' && <OverviewTab />}
       {tab === 'sessions' && <SessionsTab />}
       {tab === 'users' && <UsersTab />}
+      {tab === 'audit' && <AuditTab />}
     </div>
   );
 }
@@ -564,6 +568,82 @@ function SessionsTab() {
           Next →
         </button>
       </div>
+    </div>
+  );
+}
+
+/* ---------------- Audit ---------------- */
+
+function AuditTab() {
+  const toast = useToast();
+  const [logs, setLogs] = useState(null);
+
+  const load = useCallback(async () => {
+    try {
+      const response = await api.get('/admin/audit?size=50');
+      setLogs(response.data.content);
+    } catch (err) {
+      toast('error', err.response?.data?.error || 'Failed to load audit log.');
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  if (!logs) {
+    return <p className="muted">Loading audit log…</p>;
+  }
+
+  return (
+    <div className="card">
+      <div className="card-header">
+        <h3 style={{ margin: 0 }}>Audit trail</h3>
+        <button className="btn btn-secondary btn-sm" onClick={load}>Refresh</button>
+      </div>
+      {logs.length === 0 ? (
+        <div className="empty-state">
+          <span className="big"><Icons.activity size={26} /></span>
+          No audit entries yet.
+        </div>
+      ) : (
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Actor</th>
+                <th>Action</th>
+                <th>Target</th>
+                <th>Detail</th>
+                <th>IP</th>
+              </tr>
+            </thead>
+            <tbody>
+              {logs.map((log) => (
+                <tr key={log.id}>
+                  <td>{formatTime(log.createdAt)}</td>
+                  <td>{log.actorEmail || '—'}</td>
+                  <td>
+                    <span className={`status-pill ${
+                      log.action.includes('DISABLED') || log.action.includes('FAILED') || log.action.includes('REUSE')
+                        ? 'cancelled'
+                        : log.action.includes('LOGIN') || log.action.includes('REGISTER')
+                          ? 'completed'
+                          : 'active'
+                    }`}>
+                      {log.action}
+                    </span>
+                  </td>
+                  <td>{log.target || '—'}</td>
+                  <td style={{ whiteSpace: 'normal', minWidth: '220px' }}>{log.detail || '—'}</td>
+                  <td className="mono">{log.ip || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
